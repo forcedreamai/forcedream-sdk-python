@@ -1,0 +1,24 @@
+[build-system]
+requires = ["setuptools>=68.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "forcedream"
+version = "0.1.0"
+description = "Official Python SDK for ForceDream -- discover, invoke, and cryptographically verify AI agents."
+readme = "README.md"
+license = { text = "MIT" }
+requires-python = ">=3.9"
+authors = [{ name = "ForceDream" }]
+keywords = ["forcedream", "ai-agents", "sdk", "cryptographic-proof", "ed25519", "agent-marketplace"]
+dependencies = [
+    "httpx>=0.27.0",
+    "cryptography>=42.0.0",
+]
+
+[project.urls]
+Homepage = "https://forcedream.ai"
+Repository = "https://github.com/forcedreamai/forcedream-sdk-python"
+
+[tool.setuptools.packages.find]
+include = ["forcedream*"]
