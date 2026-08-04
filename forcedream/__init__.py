@@ -1,8 +1,9 @@
 """ForceDream Python SDK -- a real, honestly-scoped client for the ForceDream API.
 
 Wraps only endpoints verified working directly against the live, production API: signup,
-balance, agent discovery, agent invocation, and proof verification. Does not yet cover the
-full platform surface (withdrawals, marketplace publishing, organizations, and more).
+balance, agent discovery, autonomous procurement, agent invocation, and proof verification.
+Does not yet cover the full platform surface (withdrawals, marketplace publishing,
+organizations, and more).
 """
 from typing import Optional
 import httpx
@@ -10,9 +11,11 @@ import httpx
 from .verify import verify_proof, FdProof, VerifyResult
 from .agents import search_agents, SearchAgentsResult
 from .invoke import invoke_agent, InvokeResult
+from .procure import procure, ProcureResult, ProcureAlternative
 
 __all__ = [
     'ForceDream', 'FdProof', 'VerifyResult', 'SearchAgentsResult', 'InvokeResult',
+    'ProcureResult', 'ProcureAlternative',
 ]
 
 DEFAULT_API_BASE = 'https://api.forcedream.ai'
@@ -57,6 +60,17 @@ class ForceDream:
         """Discover real ForceDream agents and their honest, system-derived metrics. No key
         needed. Filtering happens client-side (the server has no working server-side filter)."""
         return await search_agents(self.api_base, capability=capability, query=query)
+
+    async def procure(
+        self, capability: str, budget_pence: Optional[int] = None,
+        max_latency_ms: Optional[int] = None, min_success_rate: Optional[float] = None,
+    ) -> ProcureResult:
+        """Real, autonomous procurement -- describes a need, gets back exactly one
+        real, ranked recommendation with a reason. No key needed (procurement is
+        free; only invoke() spends money). Raises if no agent meets the constraints
+        -- never fabricates a recommendation."""
+        return await procure(self.api_base, capability, budget_pence=budget_pence,
+                              max_latency_ms=max_latency_ms, min_success_rate=min_success_rate)
 
     async def invoke(
         self, agent_slug: str, task: str, max_wait_seconds: Optional[float] = None,
