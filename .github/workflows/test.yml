@@ -1,0 +1,40 @@
+name: Smoke test against live API
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  smoke-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install package
+        run: pip install -e .
+      - name: Real smoke test -- search_agents and verify (no key needed, no cost)
+        run: |
+          python3 -c "
+          import asyncio
+          from forcedream import ForceDream
+
+          async def main():
+              fd = ForceDream()
+              r = await fd.search_agents(capability='summarization')
+              assert r['count'] > 0, 'search_agents returned no real agents'
+              print('search_agents: OK,', r['count'], 'agents found')
+
+              p = await fd.procure(capability='summarization')
+              assert p['recommended_agent'], 'procure returned no recommendation'
+              print('procure: OK,', p['recommended_agent'])
+
+              v = await fd.verify(task_id='wtask_4cbd33a4104e6a5b05c9')
+              assert v['verified'] is True, 'known-good proof failed to verify'
+              print('verify: OK, known-good proof confirmed True')
+
+          asyncio.run(main())
+          "
