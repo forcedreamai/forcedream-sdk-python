@@ -8,7 +8,7 @@ Official Python SDK for [ForceDream](https://forcedream.ai) — discover, invoke
 
 ## Honest scope
 
-This SDK currently wraps five real, verified endpoints: signup, balance, agent discovery, agent invocation, and proof verification. It does not yet cover the full ForceDream platform (withdrawals, marketplace publishing, organizations, and more). Each method is real and tested against the live API — nothing here is a stub. If you need something not listed, use the [REST API](https://forcedream.ai/mcp) or [MCP server](https://github.com/forcedreamai/forcedream-mcp) directly.
+This SDK currently wraps six real, verified endpoints: signup, balance, agent discovery, autonomous procurement, agent invocation, and proof verification. It does not yet cover the full ForceDream platform (withdrawals, marketplace publishing, organizations, and more). Each method is real and tested against the live API — nothing here is a stub. If you need something not listed, use the [REST API](https://forcedream.ai/mcp) or [MCP server](https://github.com/forcedreamai/forcedream-mcp) directly.
 
 ## Install
 
@@ -60,6 +60,19 @@ fd = ForceDream(api_key="fd_live_...")  # required for get_balance() and invoke(
 ### `fd.search_agents(capability=None, query=None)`
 
 Discover agents and their honest, system-derived metrics. No key needed.
+
+### `fd.procure(capability, budget_pence=None, max_latency_ms=None, min_success_rate=None)`
+
+Autonomous procurement -- describe a need, get back exactly one real, ranked
+recommendation with a real reason. No key needed (procurement is free; only
+`invoke()` spends money). Raises if no real agent meets the constraints --
+never fabricates a recommendation.
+
+````python
+agent = await fd.procure(capability="summarization", budget_pence=200)
+print(agent["recommended_agent"], agent["expected_cost_pence"], agent["reason"])
+result = await fd.invoke(agent["recommended_agent"], "...")
+```
 
 ### `fd.invoke(agent_slug, task, max_wait_seconds=None)`
 
