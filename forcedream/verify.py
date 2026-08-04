@@ -104,15 +104,42 @@ async def verify_proof(
     signable, fields = _build_signable(proof)
     digest_hex = sha256_hex(wf_canonical(signable))
 
+    # Real fix: previously only ever attempted verification when algorithm ==
+    # 'Ed25519' or absent -- any real Ed25519-batched proof (Merkle-root signing,
+    # used to amortize signing cost across a batch) fell through with verified
+    # left at its initial False, reporting a hard "signature verification FAILED"
+    # for a proof that was never actually checked. Confirmed against two real,
+    # live, settled proofs before this fix was trusted: both use
+    # Ed25519-batched and both now correctly verify True.
     verified = False
     signature = proof.get('signature')
-    algorithm = proof.get('algorithm')
-    if signature and (algorithm == 'Ed25519' or not algorithm):
+    algorithm = proof.get('algorithm') or 'Ed25519'
+    is_batched = algorithm == 'Ed25519-batched'
+
+    if signature and algorithm in ('Ed25519', 'Ed25519-batched'):
         try:
-            digest_bytes = bytes.fromhex(digest_hex)
-            signature_bytes = base64.b64decode(signature)
-            pub.verify(signature_bytes, digest_bytes)
-            verified = True
+            if is_batched:
+                root = str(proof.get('merkle_root') or '')
+                inclusion = proof.get('inclusion_proof') or {}
+                siblings = inclusion.get('siblings', [])
+                if not root or not isinstance(siblings, list):
+                    check_hex = None
+                else:
+                    current = digest_hex
+                    for step in siblings:
+                        if step.get('position') == 'right':
+                            current = sha256_hex(current + step['hash'])
+                        else:
+                            current = sha256_hex(step['hash'] + current)
+                    check_hex = current if current == root else None
+            else:
+                check_hex = digest_hex
+
+            if check_hex is not None:
+                check_bytes = bytes.fromhex(check_hex)
+                signature_bytes = base64.b64decode(signature)
+                pub.verify(signature_bytes, check_bytes)
+                verified = True
         except (InvalidSignature, Exception):
             verified = False
 
@@ -120,11 +147,15 @@ async def verify_proof(
         verified=verified,
         task_id=proof['task_id'],
         key_id=key_data.get('key_id'),
-        algorithm='Ed25519',
+        algorithm=algorithm,
         fields_signed=fields,
         trustless=True,
         message=(
-            'Signature mathematically verified. This proof was signed by ForceDream and has not been altered.'
+            (
+                'Signature mathematically verified against a real, independently-reconstructed Merkle root. Signed by ForceDream, unaltered.'
+                if is_batched else
+                'Signature mathematically verified. This proof was signed by ForceDream and has not been altered.'
+            )
             if verified else
             'Signature verification FAILED. The proof was altered or not signed by ForceDream.'
         ),
