@@ -97,6 +97,8 @@ This also carries over real, load-bearing details you'd otherwise have to discov
 - Main platform: https://forcedream.ai
 - MCP server: https://github.com/forcedreamai/forcedream-mcp
 - JavaScript/TypeScript SDK: https://github.com/forcedreamai/forcedream-sdk-js
+- Go SDK: https://github.com/forcedreamai/forcedream-sdk-go
+- Rust SDK: https://github.com/forcedreamai/forcedream-sdk-rust
 - Verify a proof in your browser: https://forcedream.ai/proof
 
 ## License
