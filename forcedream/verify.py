@@ -71,8 +71,41 @@ def _build_signable(p: FdProof) -> tuple[dict, int]:
     if has_ext:
         base['external_cost_hash'] = str(p['external_cost_hash'])
         base['retrieved_count'] = _js_number(p.get('retrieved_count') or 0)
-        return base, 10
+        # Model binding: the server records which provider and model actually served
+        # the execution and binds them into the signed payload. Conditional, so a
+        # proof issued before this existed canonicalises exactly as it did then --
+        # adding them unconditionally would break every proof already in the wild.
+        n = 10
+        if p.get('inference_provider'):
+            base['inference_provider'] = str(p['inference_provider'])
+            n += 1
+        if p.get('inference_model'):
+            base['inference_model'] = str(p['inference_model'])
+            n += 1
+        return base, n
     return base, 8
+
+
+# Every field this SDK version knows how to canonicalise. Anything else in a proof
+# means the server signed over something this version cannot reconstruct -- which is
+# a version gap, not evidence of tampering, and must not be reported as tampering.
+_KNOWN_SIGNED_FIELDS = {
+    'task_id', 'agent_id', 'input_hash', 'output_hash', 'cost_pence', 'budget_pence',
+    'started_at', 'completed_at', 'external_cost_hash', 'retrieved_count',
+    'inference_provider', 'inference_model',
+}
+
+# Present on a proof but never part of the signed payload -- transport and envelope.
+_UNSIGNED_FIELDS = {
+    'proof_id', 'key_id', 'algorithm', 'merkle_root', 'batch_id', 'batch_size',
+    'inclusion_proof', 'worm_seal', 'signature', 'created_at',
+}
+
+
+def _unknown_fields(p: FdProof) -> list:
+    """Fields this SDK version does not recognise. Their presence explains a failed
+    verification honestly: the payload was signed over something we cannot rebuild."""
+    return sorted(set(p) - _KNOWN_SIGNED_FIELDS - _UNSIGNED_FIELDS)
 
 
 async def verify_proof(
@@ -157,7 +190,7 @@ async def verify_proof(
                 'Signature mathematically verified. This proof was signed by ForceDream and has not been altered.'
             )
             if verified else
-            'Signature verification FAILED. The proof was altered or not signed by ForceDream.'
+            (('Signature could not be verified: this proof carries fields this SDK version does not know (' + ', '.join(_unknown_fields(proof)) + '). Upgrade the SDK -- the proof itself may be perfectly valid.') if _unknown_fields(proof) else 'Signature verification FAILED. The proof was altered or not signed by ForceDream.')
         ),
         note='Verified client-side via public-key cryptography. ForceDream was not asked whether the proof is valid.',
     )
